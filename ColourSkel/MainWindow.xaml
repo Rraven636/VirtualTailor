@@ -6,7 +6,7 @@
         xmlns:k="clr-namespace:Microsoft.Kinect.Toolkit;assembly=Microsoft.Kinect.Toolkit"
         xmlns:local="clr-namespace:ColourSkel"
         mc:Ignorable="d"
-        Title="ColourSkel" Height="735" Width="770" Loaded="WindowLoaded" Closing="WindowClosing">
+        Title="ColourSkel" Height="735" Width="770" Closing="WindowClosing">
     <Window.Resources>
         <SolidColorBrush x:Key="MediumGreyBrush" Color="#ff6e6e6e"/>
     </Window.Resources>
