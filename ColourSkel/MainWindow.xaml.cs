@@ -26,13 +26,6 @@ namespace ColourSkel
     /// </summary>
     public partial class MainWindow : Window
     {
-        /*
-        /// <summary>
-        /// Active Kinect sensor
-        /// </summary>
-        private KinectSensor sensor;
-        */
-
         /// <summary>
         /// Active Kinect sensor
         /// </summary>
@@ -43,6 +36,9 @@ namespace ColourSkel
         /// </summary>
         private Colour colourObj;
 
+        /// <summary>
+        /// Variable to hold colour image that will be sent to SkeletonLib for skeleton mapping
+        /// </summary>
         private WriteableBitmap streamImg;
 
         /// <summary>
@@ -64,7 +60,6 @@ namespace ColourSkel
             this.sensorChooserUi.KinectSensorChooser = this.sensorChooser;
             this.sensorChooser.KinectChanged += this.SensorChooserOnKinectChanged;
             this.sensorChooser.Start();
-
         }
 
         private void WindowClosing(object sender, System.ComponentModel.CancelEventArgs e)
@@ -82,17 +77,16 @@ namespace ColourSkel
             colourObj = new Colour(this.sensorChooser.Kinect);
             colourObj.startUpColour();
 
-            /*
-            // Tie image source to the output bitmap
-            this.Image.Source = colourObj.getImage();
-            */
-
+            //Set the global variable to hold the RGB image from the Colour Object
             this.streamImg = colourObj.getImage();
 
             // Adds event handler for whenever a new colour frame is ready
             this.sensorChooser.Kinect.ColorFrameReady += colourObj.SensorColorFrameReady;
         }
 
+        /// <summary>
+        /// Starts the skeleton reading process and sends the colour image to be used for skeleton mapping
+        /// </summary>
         private void InitiateSkel()
         {
             //Create SkeltonLib Obj with active sensor
@@ -103,7 +97,7 @@ namespace ColourSkel
             //Tie image source to output of object
             this.Image.Source = skelObj.getOutputImage();
 
-            // Add an event handler to be called whenever there is new color frame data
+            // Add an event handler to be called whenever there is new skeleton frame data
             this.sensorChooser.Kinect.SkeletonFrameReady += skelObj.SensorSkeletonFrameReady;
         }
 
@@ -117,11 +111,19 @@ namespace ColourSkel
             this.Image.Source = backgroundObj.getBackgroundRemovedImage();
         }
 
+        /// <summary>
+        /// Changes the status bar text to the measurements from the skeleton object
+        /// </summary>
         private void LiveMeasure()
         {
             this.measureBarText.Text = skelObj.getMeasurements();
         }
 
+        /// <summary>
+        /// Event handler for when the Measure Button is clicked
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void ButtonMeasureClick(object sender, RoutedEventArgs e)
         {
             LiveMeasure();
