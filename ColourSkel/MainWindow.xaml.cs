@@ -17,8 +17,6 @@ using Microsoft.Kinect;
 using Microsoft.Kinect.Toolkit;
 using Microsoft.Kinect.Toolkit.BackgroundRemoval;
 
-
-
 namespace ColourSkel
 {
     /// <summary>
@@ -111,6 +109,20 @@ namespace ColourSkel
             this.Image.Source = backgroundObj.getBackgroundRemovedImage();
         }
 
+        private void DisableColour(KinectSensor OldSensor)
+        {
+            OldSensor.ColorFrameReady -= colourObj.SensorColorFrameReady;
+            OldSensor.ColorStream.Disable();
+            colourObj = null;
+        }
+
+        private void DisableSkel(KinectSensor OldSensor)
+        {
+            OldSensor.SkeletonFrameReady -= skelObj.SensorSkeletonFrameReady;
+            OldSensor.SkeletonStream.Disable();
+            skelObj = null;
+        }
+
         /// <summary>
         /// Changes the status bar text to the measurements from the skeleton object
         /// </summary>
@@ -140,11 +152,8 @@ namespace ColourSkel
             {
                 try
                 {
-                    args.OldSensor.SkeletonFrameReady -= skelObj.SensorSkeletonFrameReady;
-                    args.OldSensor.ColorFrameReady -= colourObj.SensorColorFrameReady;
-                    args.OldSensor.DepthStream.Disable();
-                    args.OldSensor.ColorStream.Disable();
-                    args.OldSensor.SkeletonStream.Disable();
+                    DisableColour(args.OldSensor);
+                    DisableSkel(args.OldSensor);
                     /*
                     // Create the background removal stream to process the data and remove background, and initialize it.
                     if (null != this.backgroundRemovedColorStream)
