@@ -120,5 +120,13 @@
       <Name>Microsoft.Kinect.Toolkit</Name>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="KinectBackgroundRemoval180_32.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="KinectBackgroundRemoval180_64.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

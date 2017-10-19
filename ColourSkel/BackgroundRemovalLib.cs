@@ -64,15 +64,16 @@ namespace ColourSkel
         /// <summary>
         /// Initializes a new instance of the class.
         /// </summary>
-        public BackgroundRemovalLib(KinectSensor sensorIn)
+        public BackgroundRemovalLib(KinectSensor sensorIn, BackgroundRemovedColorStream brColorStreamIn)
         {
             this.sensor = sensorIn;
+            this.backgroundRemovedColorStream = brColorStreamIn;
         }
 
         /// <summary>
-        /// This destructor will run only if the Dispose method does not get called.
+        /// This will run only if the Dispose method does not get called.
         /// </summary>
-        ~BackgroundRemovalLib()
+        public void backgroundDestructor()
         {
             this.Dispose(false);
         }
@@ -111,7 +112,7 @@ namespace ColourSkel
         /// </summary>
         /// <param name="sender">object sending the event</param>
         /// <param name="e">event arguments</param>
-        private void SensorAllFramesReady(object sender, AllFramesReadyEventArgs e)
+        public void SensorAllFramesReady(object sender, AllFramesReadyEventArgs e)
         {
             // in the middle of shutting down, or lingering events from previous sensor, do nothing here.
             if (null == this.sensor)
@@ -160,7 +161,7 @@ namespace ColourSkel
         /// </summary>
         /// <param name="sender">object that sends the event</param>
         /// <param name="e">argument of the event</param>
-        private void BackgroundRemovedFrameReadyHandler(object sender, BackgroundRemovedColorFrameReadyEventArgs e)
+        public void BackgroundRemovedFrameReadyHandler(object sender, BackgroundRemovedColorFrameReadyEventArgs e)
         {
             using (var backgroundRemovedFrame = e.OpenBackgroundRemovedColorFrame())
             {
@@ -231,27 +232,67 @@ namespace ColourSkel
             return this.foregroundBitmap;
         }
 
+        public BackgroundRemovedColorStream getBackgroundRemovedColorStream()
+        {
+            return this.backgroundRemovedColorStream;
+        }
+
         public void BackgroundStart()
         {
-            this.sensor.DepthStream.Enable(DepthFormat);
-            this.sensor.ColorStream.Enable(ColorFormat);
-            this.sensor.SkeletonStream.Enable();
-
-            this.backgroundRemovedColorStream = new BackgroundRemovedColorStream(this.sensor);
-            this.backgroundRemovedColorStream.Enable(ColorFormat, DepthFormat);
-
-            // Allocate space to put the depth, color, and skeleton data we'll receive
-            if (null == this.skeletons)
+            try
             {
-                this.skeletons = new Skeleton[this.sensor.SkeletonStream.FrameSkeletonArrayLength];
+                this.sensor.DepthStream.Enable(DepthFormat);
+                this.sensor.ColorStream.Enable(ColorFormat);
+                this.sensor.SkeletonStream.Enable();
+
+
+                this.backgroundRemovedColorStream.Enable(ColorFormat, DepthFormat);
+
+                // Allocate space to put the depth, color, and skeleton data we'll receive
+                if (null == this.skeletons)
+                {
+                    this.skeletons = new Skeleton[this.sensor.SkeletonStream.FrameSkeletonArrayLength];
+                }
+
+                /*
+                // Add an event handler to be called when the background removed color frame is ready, so that we can
+                // composite the image and output to the app
+                this.backgroundRemovedColorStream.BackgroundRemovedFrameReady += this.BackgroundRemovedFrameReadyHandler;
+
+                // Add an event handler to be called whenever there is new depth frame data
+                this.sensor.AllFramesReady += this.SensorAllFramesReady;
+                */
+            }
+            catch (InvalidOperationException)
+            {
+                // KinectSensor might enter an invalid state while enabling/disabling streams or stream features.
+                // E.g.: sensor might be abruptly unplugged.
             }
 
-            // Add an event handler to be called when the background removed color frame is ready, so that we can
-            // composite the image and output to the app
-            this.backgroundRemovedColorStream.BackgroundRemovedFrameReady += this.BackgroundRemovedFrameReadyHandler;
+        }
 
-            // Add an event handler to be called whenever there is new depth frame data
-            this.sensor.AllFramesReady += this.SensorAllFramesReady;
+        public void BackgroundStop(KinectSensor OldSensor)
+        {
+            try
+            {
+                OldSensor.AllFramesReady -= this.SensorAllFramesReady;
+                OldSensor.DepthStream.Disable();
+                OldSensor.ColorStream.Disable();
+                OldSensor.SkeletonStream.Disable();
+
+                // Create the background removal stream to process the data and remove background, and initialize it.
+                if (null != this.backgroundRemovedColorStream)
+                {
+                    this.backgroundRemovedColorStream.BackgroundRemovedFrameReady -= this.BackgroundRemovedFrameReadyHandler;
+                    this.backgroundRemovedColorStream.Dispose();
+                    this.backgroundRemovedColorStream = null;
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                // KinectSensor might enter an invalid state while enabling/disabling streams or stream features.
+                // E.g.: sensor might be abruptly unplugged.
+            }
         }
     }
 

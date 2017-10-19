@@ -49,6 +49,11 @@ namespace ColourSkel
         /// </summary>
         private BackgroundRemovalLib backgroundObj;
 
+        /// <summary>
+        /// Core library which does background 
+        /// </summary>
+        private BackgroundRemovedColorStream backgroundRemovedColorStream;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -60,6 +65,18 @@ namespace ColourSkel
             this.sensorChooser.Start();
         }
 
+        /// <summary>
+        /// Finalizes an instance of the MainWindow class.
+        /// This destructor will run only if the Dispose method does not get called.
+        /// </summary>
+        ~MainWindow()
+        {
+            if (this.backgroundObj != null)
+            {
+                backgroundObj.backgroundDestructor();
+            }
+        }
+
         private void WindowClosing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             this.sensorChooser.Stop();
@@ -69,26 +86,26 @@ namespace ColourSkel
         /// <summary>
         /// Starts the Colour Reading Process
         /// </summary>
-        private void InitiateColour()
+        private void InitiateColour(KinectSensor newSensor)
         {
             //Create Colour Object with active sensor and initiate StartUp
-            colourObj = new Colour(this.sensorChooser.Kinect);
+            colourObj = new Colour(newSensor);
             colourObj.startUpColour();
 
             //Set the global variable to hold the RGB image from the Colour Object
             this.streamImg = colourObj.getImage();
 
             // Adds event handler for whenever a new colour frame is ready
-            this.sensorChooser.Kinect.ColorFrameReady += colourObj.SensorColorFrameReady;
+            newSensor.ColorFrameReady += colourObj.SensorColorFrameReady;
         }
 
         /// <summary>
         /// Starts the skeleton reading process and sends the colour image to be used for skeleton mapping
         /// </summary>
-        private void InitiateSkel()
+        private void InitiateSkel(KinectSensor newSensor)
         {
             //Create SkeltonLib Obj with active sensor
-            skelObj = new SkeletonLib(this.sensorChooser.Kinect);
+            skelObj = new SkeletonLib(newSensor);
             skelObj.SkeletonStart();
             skelObj.setColourImage(this.streamImg);
 
@@ -96,19 +113,36 @@ namespace ColourSkel
             this.Image.Source = skelObj.getOutputImage();
 
             // Add an event handler to be called whenever there is new skeleton frame data
-            this.sensorChooser.Kinect.SkeletonFrameReady += skelObj.SensorSkeletonFrameReady;
+            newSensor.SkeletonFrameReady += skelObj.SensorSkeletonFrameReady;
         }
 
-        private void InitiateBackgroundRemoval()
+        /// <summary>
+        /// Starts the background removal process
+        /// </summary>
+        private void InitiateBackgroundRemoval(KinectSensor newSensor)
         {
             //Create BackgroundRemovalLib Obj with active sensor
-            backgroundObj = new BackgroundRemovalLib(this.sensorChooser.Kinect);
+            this.backgroundRemovedColorStream = new BackgroundRemovedColorStream(newSensor);
+            backgroundObj = new BackgroundRemovalLib(newSensor, this.backgroundRemovedColorStream);
             backgroundObj.BackgroundStart();
 
             //Tie image source to output of object
             this.Image.Source = backgroundObj.getBackgroundRemovedImage();
+
+            //this.backgroundRemovedColorStream = backgroundObj.getBackgroundRemovedColorStream();
+
+            // Add an event handler to be called when the background removed color frame is ready, so that we can
+            // composite the image and output to the app
+            this.backgroundRemovedColorStream.BackgroundRemovedFrameReady += backgroundObj.BackgroundRemovedFrameReadyHandler;
+
+            // Add an event handler to be called whenever there is new depth frame data
+            newSensor.AllFramesReady += backgroundObj.SensorAllFramesReady;
         }
 
+        /// <summary>
+        /// Disables the colour streaming functionality
+        /// </summary>
+        /// <param name="OldSensor"></param>
         private void DisableColour(KinectSensor OldSensor)
         {
             OldSensor.ColorFrameReady -= colourObj.SensorColorFrameReady;
@@ -116,11 +150,25 @@ namespace ColourSkel
             colourObj = null;
         }
 
+        /// <summary>
+        /// Disables the skeleton tracking
+        /// </summary>
+        /// <param name="OldSensor"></param>
         private void DisableSkel(KinectSensor OldSensor)
         {
             OldSensor.SkeletonFrameReady -= skelObj.SensorSkeletonFrameReady;
             OldSensor.SkeletonStream.Disable();
             skelObj = null;
+        }
+
+        private void DisableBackgroundRemoval(KinectSensor OldSensor)
+        {
+            if (backgroundObj != null)
+            {
+                backgroundObj.BackgroundStop(OldSensor);
+                backgroundObj = null;
+            }
+
         }
 
         /// <summary>
@@ -152,17 +200,9 @@ namespace ColourSkel
             {
                 try
                 {
-                    DisableColour(args.OldSensor);
-                    DisableSkel(args.OldSensor);
-                    /*
-                    // Create the background removal stream to process the data and remove background, and initialize it.
-                    if (null != this.backgroundRemovedColorStream)
-                    {
-                        this.backgroundRemovedColorStream.BackgroundRemovedFrameReady -= this.BackgroundRemovedFrameReadyHandler;
-                        this.backgroundRemovedColorStream.Dispose();
-                        this.backgroundRemovedColorStream = null;
-                    }
-                    */
+                    //DisableColour(args.OldSensor);
+                    //DisableSkel(args.OldSensor);
+                    DisableBackgroundRemoval(args.OldSensor);
                 }
                 catch (InvalidOperationException)
                 {
@@ -175,47 +215,13 @@ namespace ColourSkel
             {
                 try
                 {
-                    this.InitiateColour();
-                    this.InitiateSkel();
-                    //this.InitiateBackgroundRemoval();
-
-                    /*
-                    this.backgroundRemovedColorStream = new BackgroundRemovedColorStream(args.NewSensor);
-                    this.backgroundRemovedColorStream.Enable(ColorFormat, DepthFormat);
-
-                    // Allocate space to put the depth, color, and skeleton data we'll receive
-                    if (null == this.skeletons)
-                    {
-                        this.skeletons = new Skeleton[args.NewSensor.SkeletonStream.FrameSkeletonArrayLength];
-                    }
-
-                    // Add an event handler to be called when the background removed color frame is ready, so that we can
-                    // composite the image and output to the app
-                    this.backgroundRemovedColorStream.BackgroundRemovedFrameReady += this.BackgroundRemovedFrameReadyHandler;
-
-                    // Add an event handler to be called whenever there is new depth frame data
-                    args.NewSensor.AllFramesReady += this.SensorAllFramesReady;
-                    
-
-                    try
-                    {
-                        args.NewSensor.DepthStream.Range = this.checkBoxNearMode.IsChecked.GetValueOrDefault()
-                                                    ? DepthRange.Near
-                                                    : DepthRange.Default;
-                        args.NewSensor.SkeletonStream.EnableTrackingInNearRange = true;
-                    }
-                    catch (InvalidOperationException)
-                    {
-                        // Non Kinect for Windows devices do not support Near mode, so reset back to default mode.
-                        args.NewSensor.DepthStream.Range = DepthRange.Default;
-                        args.NewSensor.SkeletonStream.EnableTrackingInNearRange = false;
-                    }
-
-                    this.statusBarText.Text = Properties.Resources.ReadyForScreenshot;
-                    */
+                    //this.InitiateColour(args.NewSensor);
+                    //this.InitiateSkel(args.NewSensor);
+                    this.InitiateBackgroundRemoval(args.NewSensor);                    
                 }
-                catch (InvalidOperationException)
+                catch (InvalidOperationException ex)
                 {
+                    measureBarText.Text = ex.HelpLink;
                     // KinectSensor might enter an invalid state while enabling/disabling streams or stream features.
                     // E.g.: sensor might be abruptly unplugged.
                 }
